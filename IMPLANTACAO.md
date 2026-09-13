@@ -53,6 +53,8 @@ Nomes de referência:
 
 ---
 
+![Descrição da imagem](<imagens/imagem%20(29).png>)
+
 ## Etapa 2 — Security Groups
 
 Crie dois security groups em **VPC > Grupos de segurança > Criar grupo de segurança**, ambos na `vpc-waf-lab02`.
@@ -73,6 +75,8 @@ Crie dois security groups em **VPC > Grupos de segurança > Criar grupo de segur
 > A porta HTTP da EC2 fica acessível **apenas pelo ALB**. Não abrimos SSH (porta 22) — a administração é via **SSM Session Manager**.
 
 ---
+
+![Descrição da imagem](<imagens/imagem%20(30).png>)
 
 ## Etapa 3 — Perfil IAM para SSM
 
@@ -105,6 +109,8 @@ Para usar o Session Manager, a EC2 precisa de um perfil de instância com a pol�
    > Antes de executar, confira: **Perfil do IAM** = `role-ec2-ssm-lab02` (sem ele o SSM não conecta) e **Dados do usuário** em branco.
 
 ---
+
+![Descrição da imagem](<imagens/imagem%20(31).png>)
 
 ## Etapa 5 — Nginx via Systems Manager
 
@@ -159,6 +165,8 @@ Crie **dois** Target Groups (um para cada ALB), ambos registrando a **mesma EC2*
 
 ---
 
+![Descrição da imagem](<imagens/imagem%20(32).png>)
+
 ## Etapa 7 — Certificado ACM (mesma região do ALB)
 
 > Diferente do Lab 01 (CloudFront/us-east-1), aqui o ALB é **regional**: o certificado deve estar na **mesma região do ALB**.
@@ -209,6 +217,8 @@ Crie **dois** ALBs. Os dois usam as **2 subnets públicas** e o SG `sg-alb-lab02
 
 ---
 
+![Descrição da imagem](<imagens/imagem%20(33).png>)
+
 ## Etapa 9 — AWS WAF (Web ACL `waf-lab-path-traversal` + 2 regras)
 
 > A Web ACL deve ser **regional** e criada na **mesma região do ALB**. Ela será associada **somente ao `alb-com-waf-lab02`**.
@@ -221,6 +231,10 @@ Crie **dois** ALBs. Os dois usam as **2 subnets públicas** e o SG `sg-alb-lab02
 3. No seletor **Escopo da região** (topo), selecione **Regional** e confirme a **região do ALB** (ex.: `us-east-1`).
    > **Importante:** não use o escopo **CloudFront (global)** — uma Web ACL CloudFront **não** pode ser associada a um ALB.
 4. Clique em **Criar pacote de proteção (ACL da Web)**.
+
+![Descrição da imagem](<imagens/imagem%20(8).png>)
+
+![Descrição da imagem](<imagens/imagem%20(34).png>)
 
 ### 9.2 Escolher o tipo de pacote
 
@@ -252,6 +266,8 @@ No painel lateral **"Adicionar regras"**:
    - **Transformação de texto:** clique em **Adicionar transformação de texto** e escolha **Decodificar URL** (URL decode) — captura também `%2e%2e%2f`. Deixe **Pre-parse text transformations** vazio.
 4. Clique em **Adicionar regra**.
 
+![Descrição da imagem](<imagens/imagem%20(36).png>)
+
 ### 9.5 Regra 2 — `Captcha-Fora-do-Brasil` (CAPTCHA fora do Brasil)
 
 > Objetivo: quem acessa **de fora do Brasil** recebe um **CAPTCHA**; quem acessa **do Brasil** passa direto. O CAPTCHA é uma página interativa — por isso o teste desta regra é feito **pelo navegador**.
@@ -271,6 +287,8 @@ No painel **"Adicionar regras"** novamente:
 
 > **Atenção aos 2 erros mais comuns:** (a) a **Ação** da regra 2 vem como **Block** por padrão — troque para **CAPTCHA**; (b) confira os **nomes completos** (`Block-Path-Traversal-Lab` e `Captcha-Fora-do-Brasil`), pois é fácil salvar cortado.
 
+![Descrição da imagem](<imagens/imagem%20(37).png>)
+
 ### 9.6 Prioridade e ação padrão
 
 1. Feche o painel de "Adicionar regras" (você já tem as **2 regras** — não crie uma terceira).
@@ -278,6 +296,8 @@ No painel **"Adicionar regras"** novamente:
    - Com essa ordem: fora do Brasil **com** `../` → **403** (Block vence); fora do Brasil **sem** `../` → **CAPTCHA**; do Brasil sem `../` → passa direto.
 3. Em **Ação padrão da Web ACL**, deixe **Permitir (Allow)**.
 4. Revise e clique em **Criar pacote de proteção (ACL da Web)**.
+
+![Descrição da imagem](<imagens/imagem%20(35).png>)
 
 ### 9.7 Confirmar a associação ao ALB (passo crítico)
 
@@ -302,6 +322,8 @@ No painel **"Adicionar regras"** novamente:
 3. Repita para `alb-com-waf` apontando para `alb-com-waf-lab02`.
 4. Aguarde a propagação DNS e teste com `nslookup`.
 
+![Descrição da imagem](<imagens/imagem%20(42).png>)
+
 ---
 
 ## Etapa 11 — Testes (com comprovação de cada ataque)
@@ -324,6 +346,8 @@ https://alb-sem-waf.SEU-DOMINIO.com/
 - **access.log (SSM):** em `sudo tail -f /var/log/nginx/access.log`, aparece a linha `GET / HTTP/1.1 200`.
 - Não há WAF neste ALB, então **não** há registro em Sampled requests para o `alb-sem-waf-lab02`.
 
+![Descrição da imagem](<imagens/imagem%20(27).png>)
+
 ### Teste 2 — Path Traversal SEM WAF (o ataque passa)
 
 ```
@@ -335,6 +359,8 @@ https://alb-sem-waf.SEU-DOMINIO.com/?file=../../etc/passwd
 - **access.log (SSM):** aparece a linha `GET /?file=../../etc/passwd ...` — prova de que a requisição chegou ao servidor.
 - É o "antes": mostra o ataque passando quando **não** há WAF.
 
+![Descrição da imagem](<imagens/imagem%20(7).png>)
+
 ### Teste 3 — Acesso normal COM WAF (do Brasil)
 
 ```
@@ -345,6 +371,10 @@ https://alb-com-waf.SEU-DOMINIO.com/
 **Onde comprovar que aconteceu:**
 - **Sampled requests:** a requisição, se aparecer na amostra, tem **Ação: Allow** (passou pela ação padrão da Web ACL, sem casar regra).
 - **Visão geral / CloudWatch:** o gráfico **Solicitações permitidas (AllowedRequests)** sobe.
+
+![Descrição da imagem](<imagens/imagem%20(28).png>)
+![Descrição da imagem](<imagens/imagem%20(15).png>)
+
 
 ### Teste 4 — Path Traversal COM WAF (o ataque é BLOQUEADO)
 
@@ -360,6 +390,13 @@ https://alb-com-waf.SEU-DOMINIO.com/?file=../../etc/passwd
 3. **access.log (SSM):** a requisição bloqueada **NÃO** aparece no `/var/log/nginx/access.log` — foi barrada no ALB, antes do Nginx. (Compare com o Teste 2, onde ela apareceu.)
 
 > Dica de evidência: rode o Teste 2 e o Teste 4 em sequência, olhando o `tail -f` do access.log. Ver a linha aparecer (SEM WAF) e **não** aparecer (COM WAF) é a demonstração mais clara do lab.
+
+![Descrição da imagem](<imagens/imagem%20(12).png>)
+![Descrição da imagem](<imagens/imagem%20(20).png>)
+![Descrição da imagem](<imagens/imagem%20(38).png>)
+![Descrição da imagem](<imagens/imagem%20(39).png>)
+![Descrição da imagem](<imagens/imagem%20(40).png>)
+![Descrição da imagem](<imagens/imagem%20(41).png>)
 
 ### Teste 5 — Scripts (faz os testes de uma vez)
 
@@ -397,6 +434,10 @@ COM WAF
 
 ===========================================
 ```
+
+![Descrição da imagem](<imagens/imagem%20(17).png>)
+![Descrição da imagem](<imagens/imagem%20(19).png>)
+
 Se a linha `Path Traversal` do bloco **COM WAF** mostrar **403 BLOCKED**, o WAF está funcionando.
 
 **Onde comprovar que aconteceu:**
@@ -422,6 +463,13 @@ Com o IP fora do Brasil, no **navegador**:
 2. A do passo 2 (com `../`) aparece com **Ação: BLOCK** / **`Block-Path-Traversal-Lab`** — provando que o Block tem prioridade sobre o CAPTCHA.
 3. A do Brasil **não** aparece com ação CAPTCHA (passou direto) — confirma que o Negate está correto.
 
+<p align="center">
+  <img src="imagens/imagem%20(21).png" width="30%" />
+  <img src="imagens/imagem%20(22).png" width="30%" />
+  <img src="imagens/imagem%20(23).png" width="30%" />
+</p>
+
+![Descrição da imagem](<imagens/imagem%20(25).png>)
 
 ### Métricas do ALB (opcional)
 

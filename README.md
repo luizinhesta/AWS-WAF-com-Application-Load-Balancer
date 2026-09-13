@@ -1,11 +1,10 @@
-# AWS WAF Security Lab — Projeto 02
-
-## Proteção contra Path Traversal / LFI com Application Load Balancer + EC2 Linux
+# WAF com Application Load Balancer — Proteção contra Path Traversal / LFI
 
 Laboratório educacional que demonstra, de forma prática e controlada, a diferença entre uma aplicação **SEM AWS WAF** e uma aplicação **COM AWS WAF**, usando **Path Traversal / Local File Inclusion (LFI)** como teste principal.
 
 > Segundo projeto da série de laboratórios sobre AWS WAF.
 
+![Descrição da imagem](<imagens/imagem%20(1).png>)
 ---
 
 ## Objetivo
@@ -21,6 +20,8 @@ O ALB COM WAF tem **duas proteções**:
 2. **CAPTCHA por país** (`Captcha-Fora-do-Brasil`) — o site só é acessado **direto a partir do Brasil**; requisições de **fora do Brasil** recebem um **CAPTCHA** e só entram após resolvê-lo (evita acesso automatizado/fora do país). O teste dessa regra é feito **pelo navegador**.
 
 A principal evidência do laboratório é o **`access.log` do Nginx**: SEM WAF a requisição aparece no log; COM WAF ela é bloqueada e **não** aparece no log.
+
+![Descrição da imagem](<imagens/imagem%20(3).png>)
 
 ### O que este laboratório NÃO faz
 
@@ -61,6 +62,8 @@ O Nginx **não precisa retornar o arquivo**. O objetivo é apenas comparar se a 
 | Amazon CloudWatch | Métricas do WAF e do ALB |
 
 ---
+
+![Descrição da imagem](<imagens/imagem%20(2).png>)
 
 ## Estrutura do projeto
 

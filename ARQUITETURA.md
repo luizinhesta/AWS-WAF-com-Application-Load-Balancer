@@ -16,7 +16,7 @@ O laboratório expõe **dois subdomínios**, cada um com seu **Application Load 
                  +---------------+---------------+
                  |                               |
                  v                               v
-       alb-sem-waf.dominio.com         alb-com-waf.dominio.com
+       <SUBDOMINIO_SEM_WAF>         <SUBDOMINIO_COM_WAF>
                  |                               |
                  v                               v
             ALB SEM WAF                     ALB COM WAF
@@ -49,8 +49,8 @@ O laboratório expõe **dois subdomínios**, cada um com seu **Application Load 
 | **Route 53** | Zona hospedada com 2 registros Alias apontando para os dois ALBs. |
 | **ACM** | Certificado TLS público na **mesma região do ALB**, validado por DNS. Habilita HTTPS. |
 | **ALB SEM WAF** | Application Load Balancer sem Web ACL. |
-| **ALB COM WAF** | Application Load Balancer com a Web ACL `waf-lab-path-traversal` associada. |
-| **AWS WAF** | Web ACL **regional** com 2 regras: `Block-Path-Traversal-Lab` (detecta `../` e `%2e%2e%2f`, ação Block) e `Captcha-Fora-do-Brasil` (geo match, exige CAPTCHA fora do BR). |
+| **ALB COM WAF** | Application Load Balancer com a Web ACL `<WEB_ACL>` associada. |
+| **AWS WAF** | Web ACL **regional** com 2 regras: `<REGRA_PATH_TRAVERSAL>` (detecta `../` e `%2e%2e%2f`, ação Block) e `<REGRA_CAPTCHA>` (geo match, exige CAPTCHA fora do BR). |
 | **Target Group(s)** | Agrupam a EC2 como destino; health check em `/health` esperando HTTP 200. |
 | **EC2 (Ubuntu)** | Instância que roda o Nginx e serve o site. |
 | **Nginx** | Servidor web; responde `/` (site) e `/health` (JSON). |
@@ -63,14 +63,14 @@ O laboratório expõe **dois subdomínios**, cada um com seu **Application Load 
 
 Para o laboratório:
 
-- **1 VPC** dedicada (ex.: `10.0.0.0/16`).
+- **1 VPC** dedicada (`<VPC_CIDR>`, ex.: `10.0.0.0/16`).
 - **1 Internet Gateway** anexado à VPC.
 - **Pelo menos 2 subnets públicas** em **AZs diferentes** (requisito do ALB, que precisa de no mínimo duas zonas de disponibilidade).
 - **Route Table** com rota padrão (`0.0.0.0/0`) para o Internet Gateway, associada às subnets.
 - A **EC2** pode ficar em uma das subnets. Para administração, usa-se o **SSM Session Manager** (não é necessário IP público com SSH aberto).
 
 ```
-VPC 10.0.0.0/16
+VPC <VPC_CIDR>
 ├── Internet Gateway
 ├── Route Table pública (0.0.0.0/0 -> IGW)
 ├── Subnet pública A (AZ 1)  -> ALBs + EC2
@@ -93,7 +93,7 @@ Neste laboratório, simplificamos para reduzir custo e complexidade, mantendo a 
 
 ## Security Groups
 
-### SG do ALB (`sg-alb-lab02`)
+### SG do ALB (`<SG_ALB>`)
 
 | Direção | Porta | Origem | Motivo |
 |---|---|---|---|
@@ -101,11 +101,11 @@ Neste laboratório, simplificamos para reduzir custo e complexidade, mantendo a 
 | Inbound | 443 | 0.0.0.0/0 | HTTPS |
 | Outbound | tudo | — | padrão |
 
-### SG da EC2 (`sg-ec2-lab02`)
+### SG da EC2 (`<SG_EC2>`)
 
 | Direção | Porta | Origem | Motivo |
 |---|---|---|---|
-| Inbound | 80 | **SG do ALB** (`sg-alb-lab02`) | Só o ALB fala com o Nginx |
+| Inbound | 80 | **SG do ALB** (`<SG_ALB>`) | Só o ALB fala com o Nginx |
 | Outbound | tudo | — | Necessário para SSM e updates |
 
 > **Importante:** a porta HTTP da EC2 **não** é liberada diretamente para a Internet — apenas o Security Group do ALB pode alcançá-la. A administração é feita via **SSM Session Manager**, sem abrir a porta 22 (SSH).
@@ -117,7 +117,7 @@ Neste laboratório, simplificamos para reduzir custo e complexidade, mantendo a 
 ```
 Usuário
   ↓
-Route 53   (resolve alb-sem-waf.dominio.com para o ALB SEM WAF)
+Route 53   (resolve <SUBDOMINIO_SEM_WAF> para o ALB SEM WAF)
   ↓
 ALB SEM WAF   (sem Web ACL)
   ↓
@@ -135,25 +135,25 @@ Como **não há Web ACL**, a requisição com `../` não é inspecionada pelo WA
 ```
 Usuário
   ↓
-Route 53   (resolve alb-com-waf.dominio.com para o ALB COM WAF)
+Route 53   (resolve <SUBDOMINIO_COM_WAF> para o ALB COM WAF)
   ↓
-AWS WAF   (Web ACL waf-lab-path-traversal)
+AWS WAF   (Web ACL <WEB_ACL>)
   ↓
-Block-Path-Traversal-Lab  → contém ../ (ou %2e%2e%2f)? → BLOCK (403)
+<REGRA_PATH_TRAVERSAL>  → contém ../ (ou %2e%2e%2f)? → BLOCK (403)
   ↓ (sem path traversal)
-Captcha-Fora-do-Brasil    → origem fora do BR? → CAPTCHA (405 p/ scripts)
+<REGRA_CAPTCHA>    → origem fora do BR? → CAPTCHA (405 p/ scripts)
   ↓ (origem no Brasil)
 Encaminha ao Target Group → EC2 / Nginx
 ```
 
-O AWS WAF é avaliado **no ALB, antes de encaminhar ao Target Group**. Se a requisição contém o padrão de Path Traversal, a regra `Block-Path-Traversal-Lab` retorna **HTTP 403** e a requisição **não aparece no `access.log`** da EC2 — essa ausência é a principal evidência do laboratório. Se a origem está fora do Brasil (sem path traversal), a regra `Captcha-Fora-do-Brasil` exige o desafio e a requisição só chega ao Nginx **depois** de resolvido.
+O AWS WAF é avaliado **no ALB, antes de encaminhar ao Target Group**. Se a requisição contém o padrão de Path Traversal, a regra `<REGRA_PATH_TRAVERSAL>` retorna **HTTP 403** e a requisição **não aparece no `access.log`** da EC2 — essa ausência é a principal evidência do laboratório. Se a origem está fora do Brasil (sem path traversal), a regra `<REGRA_CAPTCHA>` exige o desafio e a requisição só chega ao Nginx **depois** de resolvido.
 
 ---
 
 ## Como funciona a regra de Path Traversal
 
 - **Web ACL:** regional (associada ao ALB, não ao CloudFront).
-- **Regra:** `Block-Path-Traversal-Lab`.
+- **Regra:** `<REGRA_PATH_TRAVERSAL>`.
 - **Detecção:** procura o padrão `../` (e a variação com URL encoding `%2e%2e%2f`) na **query string** e, se necessário, no **URI Path**.
 - **Como implementar:** Byte Match Statement (contém a string `../`) ou um Regex Pattern Set simples. Aplicar transformação de texto **URL decode** para capturar a forma codificada.
 - **Ação:** `BLOCK`.
@@ -163,8 +163,8 @@ O AWS WAF é avaliado **no ALB, antes de encaminhar ao Target Group**. Se a requ
 
 ## Como funciona a regra de CAPTCHA por país (fora do Brasil)
 
-- **Web ACL:** a mesma `waf-lab-path-traversal` (regional, associada ao `alb-com-waf-lab02`).
-- **Regra:** `Captcha-Fora-do-Brasil`.
+- **Web ACL:** a mesma `<WEB_ACL>` (regional, associada ao `<ALB_COM_WAF>`).
+- **Regra:** `<REGRA_CAPTCHA>`.
 - **Statement:** Geographic match com **Negate statement** ativo → corresponde quando o país de origem **não** é o Brasil.
 - **Configuração:** país = **Brazil (BR)**; IP usado = **Source IP address**.
 - **Ação:** `CAPTCHA` (com tempo de imunidade, ex.: 300s).
@@ -182,7 +182,7 @@ Origem fora do Brasil   →  regra corresponde       →  CAPTCHA → site após
 
 ## Ordem de avaliação das regras
 
-Recomenda-se `Block-Path-Traversal-Lab` com **prioridade mais alta** (avaliada primeiro): um ataque de path traversal deve ser **bloqueado** imediatamente, sem oferecer CAPTCHA. Efeitos combinados:
+Recomenda-se `<REGRA_PATH_TRAVERSAL>` com **prioridade mais alta** (avaliada primeiro): um ataque de path traversal deve ser **bloqueado** imediatamente, sem oferecer CAPTCHA. Efeitos combinados:
 
 - Fora do Brasil **com** `../` → **403** (Block vence).
 - Fora do Brasil **sem** `../` → **CAPTCHA**.
@@ -206,5 +206,5 @@ Recomenda-se `Block-Path-Traversal-Lab` com **prioridade mais alta** (avaliada p
 - **Web ACL regional**: exigido para associar a um ALB (diferente do escopo CloudFront do Lab 01).
 - **SSM Session Manager** em vez de SSH: reduz superfície de ataque (porta 22 fechada).
 - **EC2 acessível só pelo SG do ALB**: a aplicação nunca é exposta diretamente à Internet.
-- **2 regras** (`Block-Path-Traversal-Lab` + `Captcha-Fora-do-Brasil`): uma demonstra bloqueio por inspeção de conteúdo, a outra demonstra CAPTCHA por origem geográfica, mantendo o custo baixo e o foco didático.
+- **2 regras** (`<REGRA_PATH_TRAVERSAL>` + `<REGRA_CAPTCHA>`): uma demonstra bloqueio por inspeção de conteúdo, a outra demonstra CAPTCHA por origem geográfica, mantendo o custo baixo e o foco didático.
 - **HTTP → Redirect → HTTPS**: configurado nos listeners do ALB.

@@ -16,8 +16,8 @@ Publicar **dois endpoints** que apontam para a **mesma aplicação** (Nginx em u
 
 O ALB COM WAF tem **duas proteções**:
 
-1. **Path Traversal** (`Block-Path-Traversal-Lab`) — bloqueia o padrão `../` na query string.
-2. **CAPTCHA por país** (`Captcha-Fora-do-Brasil`) — o site só é acessado **direto a partir do Brasil**; requisições de **fora do Brasil** recebem um **CAPTCHA** e só entram após resolvê-lo (evita acesso automatizado/fora do país). O teste dessa regra é feito **pelo navegador**.
+1. **Path Traversal** (`<REGRA_PATH_TRAVERSAL>`) — bloqueia o padrão `../` na query string.
+2. **CAPTCHA por país** (`<REGRA_CAPTCHA>`) — o site só é acessado **direto a partir do Brasil**; requisições de **fora do Brasil** recebem um **CAPTCHA** e só entram após resolvê-lo (evita acesso automatizado/fora do país). O teste dessa regra é feito **pelo navegador**.
 
 A principal evidência do laboratório é o **`access.log` do Nginx**: SEM WAF a requisição aparece no log; COM WAF ela é bloqueada e **não** aparece no log.
 
@@ -53,7 +53,7 @@ O Nginx **não precisa retornar o arquivo**. O objetivo é apenas comparar se a 
 |---|---|
 | Amazon Route 53 | DNS dos subdomínios do laboratório |
 | AWS Certificate Manager (ACM) | Certificado TLS na região do ALB |
-| AWS WAF | 1 Web ACL **regional** (`waf-lab-path-traversal`) + 2 regras (`Block-Path-Traversal-Lab` e `Captcha-Fora-do-Brasil`) |
+| AWS WAF | 1 Web ACL **regional** (`<WEB_ACL>`) + 2 regras (`<REGRA_PATH_TRAVERSAL>` e `<REGRA_CAPTCHA>`) |
 | Application Load Balancer | Dois ALBs (um sem WAF, um com WAF) |
 | Target Group | Agrupa a EC2 como destino, com health check em `/health` |
 | Amazon EC2 (Ubuntu) | Instância que roda a aplicação |
@@ -68,7 +68,7 @@ O Nginx **não precisa retornar o arquivo**. O objetivo é apenas comparar se a 
 ## Estrutura do projeto
 
 ```
-aws-waf-lab-02-path-traversal/
+projeto/
 ├── scripts/
 │   └── install-nginx.sh (instala o Nginx e publica o site completo: index.html, style.css e o endpoint /health na EC2 Ubuntu)
 │
@@ -96,13 +96,13 @@ aws-waf-lab-02-path-traversal/
 Python:
 
 ```bash
-python tests/test-path-traversal.py --sem-waf https://alb-sem-waf.SEU-DOMINIO.com --com-waf https://alb-com-waf.SEU-DOMINIO.com
+python tests/test-path-traversal.py --sem-waf https://<SUBDOMINIO_SEM_WAF> --com-waf https://<SUBDOMINIO_COM_WAF>
 ```
 
 PowerShell:
 
 ```powershell
-.\tests\test-path-traversal.ps1 -UrlSemWaf "https://alb-sem-waf.SEU-DOMINIO.com" -UrlComWaf "https://alb-com-waf.SEU-DOMINIO.com"
+.\tests\test-path-traversal.ps1 -UrlSemWaf "https://<SUBDOMINIO_SEM_WAF>" -UrlComWaf "https://<SUBDOMINIO_COM_WAF>"
 ```
 
 Saída esperada:
@@ -152,4 +152,4 @@ ACM é gratuito; Route 53 cobra pela zona hospedada; CloudWatch tem uso mínimo.
 
 ## Uso responsável
 
-Execute os testes **somente** contra a sua própria infraestrutura de laboratório (`alb-sem-waf.SEU-DOMINIO.com` e `alb-com-waf.SEU-DOMINIO.com`). Não execute ataques contra terceiros e não gere flood, stress test ou DDoS.
+Execute os testes **somente** contra a sua própria infraestrutura de laboratório (`<SUBDOMINIO_SEM_WAF>` e `<SUBDOMINIO_COM_WAF>`). Não execute ataques contra terceiros e não gere flood, stress test ou DDoS.

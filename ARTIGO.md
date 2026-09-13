@@ -28,8 +28,8 @@ O objetivo do WAF é **barrar esse padrão antes que ele chegue à aplicação**
 
 O laboratório monta dois caminhos paralelos:
 
-- **`alb-sem-waf.SEU-DOMINIO.com`** → ALB **sem** Web ACL → EC2/Nginx
-- **`alb-com-waf.SEU-DOMINIO.com`** → ALB **com** Web ACL → EC2/Nginx
+- **`<SUBDOMINIO_SEM_WAF>`** → ALB **sem** Web ACL → EC2/Nginx
+- **`<SUBDOMINIO_COM_WAF>`** → ALB **com** Web ACL → EC2/Nginx
 
 Os dois ALBs registram a **mesma instância EC2** nos seus Target Groups. Isso é intencional: isolar o WAF como a única diferença entre os endpoints.
 
@@ -42,7 +42,7 @@ Os dois ALBs registram a **mesma instância EC2** nos seus Target Groups. Isso �
                               Route 53
                  +---------------+---------------+
                  v                               v
-       alb-sem-waf.dominio.com         alb-com-waf.dominio.com
+     <SUBDOMINIO_SEM_WAF>            <SUBDOMINIO_COM_WAF>
                  |                               |
                  v                               v
             ALB SEM WAF                     ALB COM WAF
@@ -62,9 +62,9 @@ Os dois ALBs registram a **mesma instância EC2** nos seus Target Groups. Isso �
 
 ## As duas proteções do WAF
 
-O ALB COM WAF usa uma única Web ACL **regional** (`waf-lab-path-traversal`) com **duas regras**, cada uma demonstrando um tipo diferente de defesa.
+O ALB COM WAF usa uma única Web ACL **regional** (`<WEB_ACL>`) com **duas regras**, cada uma demonstrando um tipo diferente de defesa.
 
-### 1. Bloqueio de Path Traversal — `Block-Path-Traversal-Lab`
+### 1. Bloqueio de Path Traversal — `<REGRA_PATH_TRAVERSAL>`
 
 - **Ação:** `BLOCK` (retorna HTTP 403).
 - **O que inspeciona:** todos os parâmetros de consulta (a query string).
@@ -75,7 +75,7 @@ Essa é a defesa por **inspeção de conteúdo**: o WAF olha o que vem na requis
 
 ![Descrição da imagem](<imagens/imagem%20(35).png>)
 
-### 2. CAPTCHA por país — `Captcha-Fora-do-Brasil`
+### 2. CAPTCHA por país — `<REGRA_CAPTCHA>`
 
 - **Ação:** `CAPTCHA`.
 - **Statement:** correspondência geográfica com **Negate** ativo → a regra vale quando o país de origem **não** é o Brasil.
